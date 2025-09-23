@@ -13,7 +13,7 @@
 
 Утилита поддерживает гибкую конфигурацию. Например можно поменять местами транслируемые раскладки:
 транслировать с русской раскладки на английскую. Для этого нужно составить простой yaml конфиг и подать его
-как дополнительный аргумент программы. Структуру конфига см в layout_switcher.example.yaml
+как дополнительный аргумент программы. Структуру конфига см в lswitch.example.yaml
 ```
 direction: "ru2en"
 custom_map:
@@ -27,15 +27,20 @@ custom_map:
 
 Build the project
 ```
-go build .
+make build
+```
+
+Run tests
+```
+make test
 ```
 
 Example of using (en2ru)
 ```
-echo "Vbcnthhj,jn" | ./lswitch
+echo "Vbcnthhj,jn" | ./bin/lswitch
 ```
 
-Example of using (ru2en). Firstly create a layout_switcher.yaml with the content that was descripted above.
+Example of using (ru2en). Firstly create a lswitch.yaml with the content that was descripted above.
 ```
-echo "мшь сщташпюече" | ./lswitch -config ./layout_switcher.yaml
+echo "мшь сщташпюече" | ./bin/lswitch -config ./configs/ru2en.example.yaml
 ```

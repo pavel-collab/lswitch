@@ -1,4 +1,4 @@
-# Makefile for layout_switcher
+# Makefile for lswitch
 
 # Имя модуля
 MODULE := yourmodule
@@ -7,10 +7,10 @@ MODULE := yourmodule
 VERSION ?= $(shell git describe --tags 2>/dev/null || echo "dev")
 
 # Имя бинарного файла
-BINARY_NAME := layout_switcher
+BINARY_NAME := lswitch
 
 # Директории
-CMD_DIR := cmd/layout_switcher
+CMD_DIR := cmd/lswitch
 BUILD_DIR := bin
 
 # Go параметры

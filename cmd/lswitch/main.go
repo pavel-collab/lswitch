@@ -18,7 +18,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("layout_switcher version %s\n", version)
+		fmt.Printf("lswitch version %s\n", version)
 		os.Exit(0)
 	}
 

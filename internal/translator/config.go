@@ -63,11 +63,11 @@ func getConfigCandidates(userPath string) []string {
 	}
 
 	// Локальный файл в текущей директории
-	candidates = append(candidates, "./layout_switcher.yaml")
+	candidates = append(candidates, "./lswitch.yaml")
 
 	// Файл в домашней директории пользователя
 	if home, err := os.UserHomeDir(); err == nil {
-		candidates = append(candidates, filepath.Join(home, ".layout_switcher.yaml"))
+		candidates = append(candidates, filepath.Join(home, ".lswitch.yaml"))
 	}
 
 	return candidates
