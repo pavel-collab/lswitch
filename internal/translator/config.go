@@ -1,12 +1,13 @@
 package translator
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
+    "errors"
+    "fmt"
+    "os"
+    "path/filepath"
+    "strings"
 
-	"gopkg.in/yaml.v3"
+    "gopkg.in/yaml.v3"
 )
 
 // Config представляет конфигурацию транслятора
@@ -16,15 +17,16 @@ type Config struct {
 }
 
 // LoadConfig загружает конфигурацию из файла или использует значения по умолчанию
-func LoadConfig(path string) Config {
+// Возвращает ошибку, если конфиг найден, но некорректен.
+func LoadConfig(path string) (Config, error) {
 	cfg := Config{
 		Direction: "en2ru",
 		CustomMap: nil,
 	}
 
-	candidates := getConfigCandidates(path)
+    candidates := getConfigCandidates(path)
 
-	for _, p := range candidates {
+    for _, p := range candidates {
 		if p == "" {
 			continue
 		}
@@ -37,7 +39,7 @@ func LoadConfig(path string) Config {
 		var loadedConfig Config
 		if err := yaml.Unmarshal(data, &loadedConfig); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to parse config %s: %v\n", p, err)
-			continue
+            continue
 		}
 
 		// Обновляем конфигурацию
@@ -48,27 +50,57 @@ func LoadConfig(path string) Config {
 			cfg.CustomMap = loadedConfig.CustomMap
 		}
 
-		return cfg
+        // Валидируем конфигурацию из найденного файла
+        if err := validateConfig(cfg); err != nil {
+            return cfg, err
+        }
+
+        return cfg, nil
 	}
 
-	return cfg
+    // Конфиг не найден — возвращаем значения по умолчанию без ошибки
+    return cfg, nil
 }
 
 // getConfigCandidates возвращает список путей к конфигурационным файлам для проверки
 func getConfigCandidates(userPath string) []string {
-	candidates := []string{}
+    candidates := []string{}
 
-	if userPath != "" {
-		candidates = append(candidates, userPath)
-	}
+    // 1) Явно указанный путь через аргумент CLI имеет наивысший приоритет
+    if userPath != "" {
+        candidates = append(candidates, userPath)
+    }
 
-	// Локальный файл в текущей директории
-	candidates = append(candidates, "./lswitch.yaml")
+    // 2) Путь из переменной окружения LSWITCH_CONFIG (если задан)
+    if envPath := os.Getenv("LSWITCH_CONFIG"); envPath != "" {
+        candidates = append(candidates, envPath)
+    }
 
-	// Файл в домашней директории пользователя
-	if home, err := os.UserHomeDir(); err == nil {
-		candidates = append(candidates, filepath.Join(home, ".lswitch.yaml"))
-	}
+    // 3) Локальный файл в текущей директории
+    candidates = append(candidates, "./lswitch.yaml")
 
-	return candidates
+    // 4) XDG_CONFIG_HOME или ~/.config
+    if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
+        candidates = append(candidates, filepath.Join(xdg, "lswitch", "lswitch.yaml"))
+    } else if home, err := os.UserHomeDir(); err == nil {
+        candidates = append(candidates, filepath.Join(home, ".config", "lswitch", "lswitch.yaml"))
+    }
+
+    // 5) Файл в домашней директории пользователя (исторический вариант)
+    if home, err := os.UserHomeDir(); err == nil {
+        candidates = append(candidates, filepath.Join(home, ".lswitch.yaml"))
+    }
+
+    return candidates
+}
+
+// validateConfig проверяет корректность полей конфига
+func validateConfig(cfg Config) error {
+    switch strings.ToLower(strings.TrimSpace(cfg.Direction)) {
+    case "en2ru", "ru2en", "":
+        // пустое значение уже нормализовано ранее в en2ru
+    default:
+        return errors.New("invalid direction: must be 'en2ru' or 'ru2en'")
+    }
+    return nil
 }

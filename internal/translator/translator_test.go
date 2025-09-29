@@ -22,7 +22,10 @@ func TestLoadConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := LoadConfig(tt.path)
+            cfg, err := LoadConfig(tt.path)
+            if err != nil {
+                t.Fatalf("unexpected error: %v", err)
+            }
 			if cfg.Direction != tt.expected.Direction {
 				t.Errorf("Expected direction %s, got %s", tt.expected.Direction, cfg.Direction)
 			}
