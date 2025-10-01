@@ -8,15 +8,18 @@ import (
 	"os"
 
 	"lswitch/internal/translator"
+    clipboard "github.com/atotto/clipboard"
 )
 
 // version указывает версию приложения (задаётся при сборке)
 var version = "dev"
 
 func main() {
-	cfgPath := flag.String("config", "", "Path to YAML config file (optional)")
-	showVersion := flag.Bool("version", false, "Show version and exit")
+    cfgPath := flag.String("config", "", "Path to YAML config file (optional)")
+    showVersion := flag.Bool("version", false, "Show version and exit")
     showHelp := flag.Bool("help", false, "Show help and exit")
+    useClipboard := flag.Bool("clipboard", false, "Read from and write to system clipboard")
+    quiet := flag.Bool("quiet", false, "Do not print output to stdout in clipboard mode")
 	flag.Parse()
 
     // Быстрый путь: справка
@@ -30,18 +33,32 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Загружаем конфигурацию
+    // Загружаем конфигурацию
     cfg, err := translator.LoadConfig(*cfgPath)
     if err != nil {
         log.Printf("invalid config: %v", err)
         os.Exit(2)
     }
 
-	// Читаем stdin полностью
+    // Режим работы с буфером обмена
+    if *useClipboard {
+        if err := handleClipboardMode(cfg, *quiet); err != nil {
+            fmt.Fprintln(os.Stderr, "Clipboard mode error:", err)
+            os.Exit(3)
+        }
+        return
+    }
+
+    // Читаем stdin полностью
     input, err := readAllFromStdin()
     if err != nil {
         fmt.Fprintln(os.Stderr, "Failed to read stdin:", err)
         os.Exit(3)
+    }
+    // Если stdin пуст и не выбран режим clipboard — показать usage и выйти
+    if input == "" {
+        flag.Usage()
+        return
     }
 
 	// Создаём транслятор и преобразуем текст
@@ -72,4 +89,26 @@ func readAllFromStdin() (string, error) {
         return "", err
     }
     return string(b), nil
+}
+
+// handleClipboardMode читает текст из системного буфера обмена, переводит его и
+// записывает обратно. Опционально печатает результат в stdout, если quiet=false.
+func handleClipboardMode(cfg translator.Config, quiet bool) error {
+    text, err := clipboard.ReadAll()
+    if err != nil {
+        return fmt.Errorf("read clipboard: %w", err)
+    }
+    if text == "" {
+        // Пустой буфер обмена — ничего не делаем
+        return nil
+    }
+    trans := translator.New(cfg)
+    out := trans.Translate(text)
+    if err := clipboard.WriteAll(out); err != nil {
+        return fmt.Errorf("write clipboard: %w", err)
+    }
+    if !quiet {
+        _, _ = io.WriteString(os.Stdout, out)
+    }
+    return nil
 }
