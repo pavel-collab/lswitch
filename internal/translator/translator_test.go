@@ -22,7 +22,10 @@ func TestLoadConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := LoadConfig(tt.path)
+            cfg, err := LoadConfig(tt.path)
+            if err != nil {
+                t.Fatalf("unexpected error: %v", err)
+            }
 			if cfg.Direction != tt.expected.Direction {
 				t.Errorf("Expected direction %s, got %s", tt.expected.Direction, cfg.Direction)
 			}
@@ -49,7 +52,7 @@ func TestTranslator_Translate(t *testing.T) {
 			input:    "Hello",
 			expected: "Руддщ",
 		},
-		//TODO: mixed case and work with numbers is not implemented yet
+        // TODO: mixed case and numbers handling is not implemented yet
 		// {
 		// 	name:     "mixed case and symbols",
 		// 	input:    "Hello, World!",
@@ -152,7 +155,7 @@ func TestBuildMapping(t *testing.T) {
 	}
 }
 
-// BenchmarkTranslate бенчмарк для измерения производительности
+// BenchmarkTranslate measures Translate performance
 func BenchmarkTranslate(b *testing.B) {
 	cfg := Config{Direction: "en2ru"}
 	translator := New(cfg)

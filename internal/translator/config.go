@@ -1,46 +1,48 @@
 package translator
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
+    "errors"
+    "fmt"
+    "os"
+    "path/filepath"
+    "strings"
 
-	"gopkg.in/yaml.v3"
+    "gopkg.in/yaml.v3"
 )
 
-// Config представляет конфигурацию транслятора
+// Config represents translator configuration
 type Config struct {
-	Direction string            `yaml:"direction"` // "en2ru" или "ru2en"
+    Direction string            `yaml:"direction"` // "en2ru" or "ru2en"
 	CustomMap map[string]string `yaml:"custom_map,omitempty"`
 }
 
-// LoadConfig загружает конфигурацию из файла или использует значения по умолчанию
-func LoadConfig(path string) Config {
+// LoadConfig loads configuration from file or falls back to defaults.
+// Returns an error when a found config is invalid.
+func LoadConfig(path string) (Config, error) {
 	cfg := Config{
 		Direction: "en2ru",
 		CustomMap: nil,
 	}
 
-	candidates := getConfigCandidates(path)
+    candidates := getConfigCandidates(path)
 
-	for _, p := range candidates {
+    for _, p := range candidates {
 		if p == "" {
 			continue
 		}
 
-		data, err := os.ReadFile(p)
+        data, err := os.ReadFile(p)
 		if err != nil {
-			continue // Файл не найден - пробуем следующий
+            continue // File not found — try next candidate
 		}
 
 		var loadedConfig Config
 		if err := yaml.Unmarshal(data, &loadedConfig); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to parse config %s: %v\n", p, err)
-			continue
+            continue
 		}
 
-		// Обновляем конфигурацию
+        // Update configuration from loaded values
 		if loadedConfig.Direction != "" {
 			cfg.Direction = strings.ToLower(loadedConfig.Direction)
 		}
@@ -48,27 +50,57 @@ func LoadConfig(path string) Config {
 			cfg.CustomMap = loadedConfig.CustomMap
 		}
 
-		return cfg
+        // Validate configuration from the discovered file
+        if err := validateConfig(cfg); err != nil {
+            return cfg, err
+        }
+
+        return cfg, nil
 	}
 
-	return cfg
+    // Config not found — return defaults without error
+    return cfg, nil
 }
 
-// getConfigCandidates возвращает список путей к конфигурационным файлам для проверки
+// getConfigCandidates returns a prioritized list of config paths to check
 func getConfigCandidates(userPath string) []string {
-	candidates := []string{}
+    candidates := []string{}
 
-	if userPath != "" {
-		candidates = append(candidates, userPath)
-	}
+    // 1) Explicit path from CLI flag has the highest priority
+    if userPath != "" {
+        candidates = append(candidates, userPath)
+    }
 
-	// Локальный файл в текущей директории
-	candidates = append(candidates, "./lswitch.yaml")
+    // 2) Path from env var LSWITCH_CONFIG (if set)
+    if envPath := os.Getenv("LSWITCH_CONFIG"); envPath != "" {
+        candidates = append(candidates, envPath)
+    }
 
-	// Файл в домашней директории пользователя
-	if home, err := os.UserHomeDir(); err == nil {
-		candidates = append(candidates, filepath.Join(home, ".lswitch.yaml"))
-	}
+    // 3) Local file in current directory
+    candidates = append(candidates, "./lswitch.yaml")
 
-	return candidates
+    // 4) XDG_CONFIG_HOME or ~/.config
+    if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
+        candidates = append(candidates, filepath.Join(xdg, "lswitch", "lswitch.yaml"))
+    } else if home, err := os.UserHomeDir(); err == nil {
+        candidates = append(candidates, filepath.Join(home, ".config", "lswitch", "lswitch.yaml"))
+    }
+
+    // 5) Historical location in user's home directory
+    if home, err := os.UserHomeDir(); err == nil {
+        candidates = append(candidates, filepath.Join(home, ".lswitch.yaml"))
+    }
+
+    return candidates
+}
+
+// validateConfig verifies config fields are valid
+func validateConfig(cfg Config) error {
+    switch strings.ToLower(strings.TrimSpace(cfg.Direction)) {
+    case "en2ru", "ru2en", "":
+        // empty value has been normalized to en2ru earlier
+    default:
+        return errors.New("invalid direction: must be 'en2ru' or 'ru2en'")
+    }
+    return nil
 }
