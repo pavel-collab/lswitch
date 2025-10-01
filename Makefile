@@ -1,19 +1,19 @@
 # Makefile for lswitch
 
-# Имя модуля
+# Module name (not used in build, informational)
 MODULE := yourmodule
 
-# Версия приложения
+# Application version
 VERSION ?= $(shell git describe --tags 2>/dev/null || echo "dev")
 
-# Имя бинарного файла
+# Binary name
 BINARY_NAME := lswitch
 
-# Директории
+# Directories
 CMD_DIR := cmd/lswitch
 BUILD_DIR := bin
 
-# Go параметры
+# Go parameters
 GO := go
 GOFLAGS := -v
 LDFLAGS := -X main.version=$(VERSION)
@@ -22,46 +22,46 @@ LDFLAGS := -X main.version=$(VERSION)
 
 all: test build
 
-## build: Сборка релизной версии
+## build: Build release binary
 build:
 	@echo "Building $(BINARY_NAME) version $(VERSION)"
 	@mkdir -p $(BUILD_DIR)
 	$(GO) build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME) ./$(CMD_DIR)
 
-## debug: Сборка с отладочной информацией
+## debug: Build debug binary (no optimizations)
 debug:
 	@echo "Building debug version"
 	@mkdir -p $(BUILD_DIR)
 	$(GO) build $(GOFLAGS) -gcflags="all=-N -l" -o $(BUILD_DIR)/$(BINARY_NAME)_debug ./$(CMD_DIR)
 
-## test: Запуск юнит-тестов
+## test: Run unit tests
 test:
 	@echo "Running tests..."
 	$(GO) test -v ./internal/translator
 
-## test-cover: Запуск тестов с измерением покрытия
+## test-cover: Run tests with coverage report
 test-cover:
 	@echo "Running tests with coverage..."
 	$(GO) test -coverprofile=coverage.out ./internal/translator
 	$(GO) tool cover -html=coverage.out -o coverage.html
 
-## bench: Запуск бенчмарков
+## bench: Run benchmarks
 bench:
 	@echo "Running benchmarks..."
 	$(GO) test -bench=. -benchmem ./internal/translator
 
-## clean: Очистка артефактов сборки
+## clean: Remove build artifacts
 clean:
 	@echo "Cleaning..."
 	rm -rf $(BUILD_DIR)
 	rm -f coverage.out coverage.html
 
-## install: Установка в $GOPATH/bin
+## install: Install into $GOPATH/bin
 install:
 	@echo "Installing..."
 	$(GO) install -ldflags "$(LDFLAGS)" ./$(CMD_DIR)
 
-## help: Показать справку по командам
+## help: Show help for available commands
 help:
 	@echo "Available commands:"
 	@sed -n 's/^##//p' $(MAKEFILE_LIST) | column -t -s ':' | sed -e 's/^/ /'

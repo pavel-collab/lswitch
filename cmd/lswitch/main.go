@@ -11,7 +11,7 @@ import (
     clipboard "github.com/atotto/clipboard"
 )
 
-// version указывает версию приложения (задаётся при сборке)
+// version indicates the application version (injected at build time)
 var version = "dev"
 
 func main() {
@@ -22,7 +22,7 @@ func main() {
     quiet := flag.Bool("quiet", false, "Do not print output to stdout in clipboard mode")
 	flag.Parse()
 
-    // Быстрый путь: справка
+    // Fast path: show help and exit
     if *showHelp {
         flag.Usage()
         os.Exit(0)
@@ -33,14 +33,14 @@ func main() {
 		os.Exit(0)
 	}
 
-    // Загружаем конфигурацию
+    // Load configuration
     cfg, err := translator.LoadConfig(*cfgPath)
     if err != nil {
         log.Printf("invalid config: %v", err)
         os.Exit(2)
     }
 
-    // Режим работы с буфером обмена
+    // Clipboard mode
     if *useClipboard {
         if err := handleClipboardMode(cfg, *quiet); err != nil {
             fmt.Fprintln(os.Stderr, "Clipboard mode error:", err)
@@ -49,23 +49,23 @@ func main() {
         return
     }
 
-    // Читаем stdin полностью
+    // Read entire stdin
     input, err := readAllFromStdin()
     if err != nil {
         fmt.Fprintln(os.Stderr, "Failed to read stdin:", err)
         os.Exit(3)
     }
-    // Если stdin пуст и не выбран режим clipboard — показать usage и выйти
+    // If stdin is empty and clipboard mode is not selected — show usage and exit
     if input == "" {
         flag.Usage()
         return
     }
 
-	// Создаём транслятор и преобразуем текст
+    // Create translator and transform text
 	trans := translator.New(cfg)
 	output := trans.Translate(string(input))
 
-	// Записываем результат в stdout
+    // Write result to stdout
     _, err = io.WriteString(os.Stdout, output)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to write stdout:", err)
@@ -73,14 +73,14 @@ func main() {
 	}
 }
 
-// readAllFromStdin читает все данные из stdin. Если stdin не подключен к пайпу/файлу,
-// функция возвращает пустую строку без ошибки, чтобы утилита могла просто ничего не делать.
+// readAllFromStdin reads all data from stdin. If stdin is not a pipe/file,
+// it returns an empty string without error so the utility can no-op gracefully.
 func readAllFromStdin() (string, error) {
     stat, err := os.Stdin.Stat()
     if err != nil {
         return "", err
     }
-    // Если данные не поступают (stdin — терминал), просто вернуть пустую строку
+    // If no data is coming (stdin is a TTY), return an empty string
     if (stat.Mode() & os.ModeCharDevice) != 0 {
         return "", nil
     }
@@ -91,15 +91,15 @@ func readAllFromStdin() (string, error) {
     return string(b), nil
 }
 
-// handleClipboardMode читает текст из системного буфера обмена, переводит его и
-// записывает обратно. Опционально печатает результат в stdout, если quiet=false.
+// handleClipboardMode reads text from the system clipboard, translates it,
+// writes it back, and optionally prints to stdout when quiet=false.
 func handleClipboardMode(cfg translator.Config, quiet bool) error {
     text, err := clipboard.ReadAll()
     if err != nil {
         return fmt.Errorf("read clipboard: %w", err)
     }
     if text == "" {
-        // Пустой буфер обмена — ничего не делаем
+        // Empty clipboard — do nothing
         return nil
     }
     trans := translator.New(cfg)

@@ -10,14 +10,14 @@ import (
     "gopkg.in/yaml.v3"
 )
 
-// Config представляет конфигурацию транслятора
+// Config represents translator configuration
 type Config struct {
-	Direction string            `yaml:"direction"` // "en2ru" или "ru2en"
+    Direction string            `yaml:"direction"` // "en2ru" or "ru2en"
 	CustomMap map[string]string `yaml:"custom_map,omitempty"`
 }
 
-// LoadConfig загружает конфигурацию из файла или использует значения по умолчанию
-// Возвращает ошибку, если конфиг найден, но некорректен.
+// LoadConfig loads configuration from file or falls back to defaults.
+// Returns an error when a found config is invalid.
 func LoadConfig(path string) (Config, error) {
 	cfg := Config{
 		Direction: "en2ru",
@@ -31,9 +31,9 @@ func LoadConfig(path string) (Config, error) {
 			continue
 		}
 
-		data, err := os.ReadFile(p)
+        data, err := os.ReadFile(p)
 		if err != nil {
-			continue // Файл не найден - пробуем следующий
+            continue // File not found — try next candidate
 		}
 
 		var loadedConfig Config
@@ -42,7 +42,7 @@ func LoadConfig(path string) (Config, error) {
             continue
 		}
 
-		// Обновляем конфигурацию
+        // Update configuration from loaded values
 		if loadedConfig.Direction != "" {
 			cfg.Direction = strings.ToLower(loadedConfig.Direction)
 		}
@@ -50,7 +50,7 @@ func LoadConfig(path string) (Config, error) {
 			cfg.CustomMap = loadedConfig.CustomMap
 		}
 
-        // Валидируем конфигурацию из найденного файла
+        // Validate configuration from the discovered file
         if err := validateConfig(cfg); err != nil {
             return cfg, err
         }
@@ -58,35 +58,35 @@ func LoadConfig(path string) (Config, error) {
         return cfg, nil
 	}
 
-    // Конфиг не найден — возвращаем значения по умолчанию без ошибки
+    // Config not found — return defaults without error
     return cfg, nil
 }
 
-// getConfigCandidates возвращает список путей к конфигурационным файлам для проверки
+// getConfigCandidates returns a prioritized list of config paths to check
 func getConfigCandidates(userPath string) []string {
     candidates := []string{}
 
-    // 1) Явно указанный путь через аргумент CLI имеет наивысший приоритет
+    // 1) Explicit path from CLI flag has the highest priority
     if userPath != "" {
         candidates = append(candidates, userPath)
     }
 
-    // 2) Путь из переменной окружения LSWITCH_CONFIG (если задан)
+    // 2) Path from env var LSWITCH_CONFIG (if set)
     if envPath := os.Getenv("LSWITCH_CONFIG"); envPath != "" {
         candidates = append(candidates, envPath)
     }
 
-    // 3) Локальный файл в текущей директории
+    // 3) Local file in current directory
     candidates = append(candidates, "./lswitch.yaml")
 
-    // 4) XDG_CONFIG_HOME или ~/.config
+    // 4) XDG_CONFIG_HOME or ~/.config
     if xdg := os.Getenv("XDG_CONFIG_HOME"); xdg != "" {
         candidates = append(candidates, filepath.Join(xdg, "lswitch", "lswitch.yaml"))
     } else if home, err := os.UserHomeDir(); err == nil {
         candidates = append(candidates, filepath.Join(home, ".config", "lswitch", "lswitch.yaml"))
     }
 
-    // 5) Файл в домашней директории пользователя (исторический вариант)
+    // 5) Historical location in user's home directory
     if home, err := os.UserHomeDir(); err == nil {
         candidates = append(candidates, filepath.Join(home, ".lswitch.yaml"))
     }
@@ -94,11 +94,11 @@ func getConfigCandidates(userPath string) []string {
     return candidates
 }
 
-// validateConfig проверяет корректность полей конфига
+// validateConfig verifies config fields are valid
 func validateConfig(cfg Config) error {
     switch strings.ToLower(strings.TrimSpace(cfg.Direction)) {
     case "en2ru", "ru2en", "":
-        // пустое значение уже нормализовано ранее в en2ru
+        // empty value has been normalized to en2ru earlier
     default:
         return errors.New("invalid direction: must be 'en2ru' or 'ru2en'")
     }
